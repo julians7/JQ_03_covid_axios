@@ -1,11 +1,12 @@
 import moment from "moment";
 import axios from "axios";
-import Highcharts from "highcharts";
+import Highcharts, { map } from "highcharts";
 import "bootstrap/dist/css/bootstrap.css";
+import csv from "csvtojson";
 
 
 //nacitanie sorce code/date
-
+/*
 axios.get('https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/ncov_cases2_v1/FeatureServer/2/query?where=1%3D1&outFields=*&outSR=4326&f=json')
     .then((response) => {
         //console.log(response);
@@ -17,15 +18,14 @@ axios.get('https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/nc
         // maxMortalityRateCountry(data);
 
         //const coutries = sort(data, "Confirmed", "desc");
-
-        /*graph(data, ['Confirmed', 'Deaths'], 'desc', 10, {
+        graph(data, ['Confirmed', 'Deaths'], 'desc', 10, {
             chart: {
                 type: 'line',
             },
             title: {
                 text: "Covid19 stats"
             }
-        });*/
+        });
 
         for (let field in data[0].attributes) {
             if (!isNaN(data[0].attributes[field]) && data[0].attributes[field] != null) {
@@ -52,7 +52,7 @@ axios.get('https://services1.arcgis.com/0MSEUqKaxRlEPj5g/arcgis/rest/services/nc
 
 
     })
-
+*/
 //Max.mortality rate
 function maxMortalityRate(data) {
     //console.log(data);
@@ -63,7 +63,7 @@ function maxMortalityRate(data) {
         }
 
     })
-    //console.log(mortalityRate);
+    console.log(mortalityRate);
 }
 
 
@@ -78,7 +78,6 @@ function maxMortalityRateCountry(countries) {
     })
     //console.log(country);
 }
-
 
 /**
 * Vyhladanie krajiny
@@ -107,7 +106,6 @@ function sort(countries, field, order = 'asc') {
                 }
             }
 
-
             if (order === 'desc') {
 
                 if (data[j].attributes[field] < data[j + 1].attributes[field]) {
@@ -116,9 +114,6 @@ function sort(countries, field, order = 'asc') {
                     data[j + 1] = temp;
                 }
             }
-
-
-
         }
 
     }
@@ -139,25 +134,6 @@ function render(countries) {
     });
     document.getElementById('app').appendChild(table);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /**
  * Vygeneruje graf
@@ -251,9 +227,110 @@ function graph(el, data, field, sortDirection = "desc", limit = 10, options = nu
     const newOptions = { ...defaultOptions, ...options, series: helper(fields, values) };
 
 
-
-
-
     Highcharts.chart(el, newOptions);
+}
+
+
+
+
+function loadHospitals() {
+    axios
+        .get('https://raw.githubusercontent.com/Institut-Zdravotnych-Analyz/covid19-data/main/Hospitals/OpenData_Slovakia_Covid_Hospital_Full.csv')
+        .then(result => {
+            const csvstr = result.data;
+            csv({
+                noheader: true,
+                output: "csv",
+                delimiter: ';'
+            })
+                .fromString(csvstr)
+                .then((csvRow) => {
+
+                    let JSONdata = _csvArrayParse(csvRow);
+                    let r = filter(JSONdata, null, null, Poprad);
+
+                    console.log(r);
+                    //co je v r
+
+                    console.log(JSONdata.filter(p => {
+                        // console.log(moment(p.dat_sprac, 'YYYY-MM-DD hh:mm:ss').startOf('day').unix(), moment('2021-11-01', 'YYYY-MM-DD').startOf('day').unix());
+                        return moment(p.dat_sprac, 'YYYY-MM-DD hh:mm:ss').startOf('day').unix() === moment('2021-12-01', 'YYYY-MM-DD').startOf('day').unix() && p.nazov.toLowerCase().includes('poprad');
+                        //function filter(data, fromDate, toDate, hospitalName);
+                    }));
+                    //console.log(csvRow) // => [["1","2","3"], ["4","5","6"], ["7","8","9"]]
+                })
+        })
+}
+
+loadHospitals();
+
+function _csvArrayParse(data) {
+    const header = data[0];
+    let result = [];
+    data.forEach(function (item, index) {
+        if (!index) return;
+        result.push(item);
+    })
+
+    result = result.map(function (row, index) {
+        let r = {};
+        row.forEach(function (item, index2) {
+            let h = header[index2].toLowerCase();
+            let v = isNaN(item) ? item : parseFloat(item);
+            r[h] = v;
+        })
+        return r;
+    })
+    return result;
+}
+/*
+
+/** Filter data
+    * @param {*} data  vsetky data
+    * @param {*} fromDate datum od
+    * @param {*} toDate   datum do 
+    * @param {*} hospitalName  Nazov nemocnice
+* /
+
+*/
+
+function filter(hospitalsData, fromDate, toDate, hospitalName) {
+    console.log(hospitalsData[0])
+    return hospitalsData.filter(function (hospitalData) {
+        //oneRow je jeden riadok z dat
+        // ulozi do premennej nazov nemocnice
+        let name = hospitalData.nazov; //filter nazov
+        let date = moment(hospitalsData.datum_vypl, "YYYY-MM-DD hh:mm:ss").unix(); // cas z json
+        let fDate = moment(fromDate, "YYYY-MM-DD").startOf('day').unix(); //filter od
+        let eDate = moment(endDate, "YYYY-MM-DD").endOf('day').unix(); //filter do
+
+
+        if (date > fDate && name === "") {
+            return true
+        } else {
+            return false
+        }
+
+        // porovna ci date <> s e date
+        // a zaroven
+
+        //ci name obsahuje text z premennej hospitalName
+
+        //ak ano true ak nie false
+    });
+
+    console.log(date);
+
+}
+
+
+
+
+/**
+ * 
+ * @param {*} data  jedna nemocnica
+ */
+function renderHospital(data) {
+
 }
 
